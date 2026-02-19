@@ -1,0 +1,206 @@
+#include <Servo.h>
+int mLv = 5; //Levý motor dopředu
+int mLs = 7; //Levý motor dozadu
+int mPv = 6; //Pravý motor dopředu
+int mPs = 8; //Pravý motor dozadu
+float chyba;
+int korekce;
+float P = 110;
+int vL = 150;
+int vR = 150;
+int vL1 = 170;
+int vR1 = 150;
+int mL;
+int mP;
+int cmin[4];
+int cmax[4];
+int vaha[4] = { -4, -1, 1, 4};
+int norm[4];
+long t0;
+int sumaH;
+int sumaVH;
+//odsud nahoru je deklarace P pro jízdu po čáře
+// odsud dolů je deklerace pro P na objíždění překážky
+Servo myservo;
+int pTrig = 12;
+int pEcho = 13;
+int pServo = 11;
+int positionServo = 0;
+int vzdalenost;
+int P1 = 6;
+int Err1;
+int Kor1;
+int mL1;
+int mP1;
+int hr;
+int odezva;
+// int vzdalenostSenzor je funkce pro měření vzdálenosti kterou stačí jen zavolat a ona se změří a potom se jen v cyklu ptáš na vzdalenost
+int vzdalenostSenzor() {
+  digitalWrite(pTrig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pTrig, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pTrig, LOW);
+  odezva = pulseIn(pEcho, HIGH, 8000);  // maximální délku pulzu v mikrosekundách (us)
+  vzdalenost = int(odezva / 58.31);    // přepočet na cm
+}
+void setup()
+
+{
+  Serial.begin(9600);
+  pinMode(mLv, OUTPUT);
+  pinMode(mLs, OUTPUT);
+  pinMode(mPv, OUTPUT);
+  pinMode(mPs, OUTPUT);
+  pinMode(pTrig, OUTPUT);
+  pinMode(pEcho, INPUT);
+  myservo.attach(pServo);
+  myservo.write(90);
+  delay(3000);
+  analogWrite(mLv, 200);                  //roztočit robota
+  digitalWrite(mLs, LOW);
+  analogWrite(mPv, 55);
+  digitalWrite(mPs, HIGH);
+
+  for (int i = 0; i < 4; i++) {
+    cmax[i] = 0;
+    cmin[i] = 1023;
+  }
+  t0 = millis();
+  while ((millis() - t0) < 3000) {
+    for (int i = 0; i < 4; i++) {
+      int pom = analogRead(A0 + i);
+
+      if (pom > cmax[i])
+      {
+        cmax [i] = pom;
+      }
+
+      if (pom < cmin[i])
+      {
+        cmin [i] = pom;
+      }
+    }
+  }
+  while (analogRead(A3) < 200);
+
+  analogWrite(mLv, 0);                  //zastavit robota
+  digitalWrite(mLs, LOW);
+  analogWrite(mPv, 0);
+  digitalWrite(mPs, LOW);
+  delay(3000);
+}
+
+
+
+void loop()
+{
+  
+  vzdalenostSenzor();
+  if (vzdalenost < 1) vzdalenost = 40;
+  if(vzdalenost>10)
+  {
+  for (int i = 0; i < 4; i++)
+  {
+    norm[i] = int((100.0 * (analogRead(A0+i) - cmin[i])) / ((cmax[i] - cmin[i])*1.0));
+    if(norm [i]>100)
+    {norm [i]=100;}
+    if(norm [i]<0)
+    {norm [i]=0;}
+  }
+  sumaH = 0;
+  sumaVH = 0;
+
+  for (int j = 0; j < 4; j++)
+  {
+    sumaH = norm[j] + sumaH;                                   //součet absolutních hodnot
+    sumaVH = vaha[j] * norm[j] + sumaVH;                              //suma součinů (normalizovaných) hodnot čidel a vah
+  }
+  if (sumaH > 0)
+  {
+    chyba = (sumaVH*1.0) / (sumaH*1.0);
+  }
+  
+  else
+  {
+    chyba = 0;
+  }
+
+  korekce = int(P * chyba);
+  mL = vL + korekce;
+  mP = vR - korekce;
+
+if(mL>vL)
+{mL=vL;}
+if(mL<0)
+{mL=0;}
+if(mP>vR)
+{mP=vR;}
+if(mP<0)
+{mP=0;}
+
+  analogWrite(mLv, mL);
+  digitalWrite(mLs, LOW);
+  analogWrite(mPv, mP);
+  digitalWrite(mPs, LOW);
+  
+  }
+
+
+
+  
+  else
+{ // Natočení serva doprava
+    myservo.write(30);
+    delay(20);
+
+    // Otočení doleva zhruba o 45 stupnu
+    digitalWrite(mPs, LOW);
+    analogWrite(mPv, vR1);
+    digitalWrite(mLs, HIGH);
+    analogWrite(mLv, 255-vL1);
+    delay(200);
+    digitalWrite(mPs, LOW);
+    analogWrite(mPv, 0);
+    digitalWrite(mLs, LOW);
+    analogWrite(mLv, 0);
+    delay(1000);
+
+    while (analogRead(A3)<400) // Objiždění překážky
+    {
+      vzdalenostSenzor();
+      if (vzdalenost < 1)
+      {
+        vzdalenost = 35;
+      }
+      Err1 = vzdalenost - 27;
+      Kor1 = int(P1 * Err1);
+      mL1 = vL1 + Kor1;
+      if (mL1 < 0)
+      {
+        mL1 = 0;
+      }
+      if (mL1 > vL1)
+      {
+        mL1 = vL1;
+      }
+      mP1 = vR1 - Kor1;
+      if (mP1 < 0)
+      {
+        mP1 = 0;
+      }
+      if (mP1 > vR1)
+      {
+        mP1 = vR1;
+      }
+      analogWrite(mPv, mP1);
+      analogWrite(mLv, mL1);
+    }
+    myservo.write(90);
+    digitalWrite(mPs, LOW);
+    analogWrite(mPv, vR1);
+    digitalWrite(mLs, LOW);
+    analogWrite(mLv, 255-vL1);
+    delay(350);
+}
+}
