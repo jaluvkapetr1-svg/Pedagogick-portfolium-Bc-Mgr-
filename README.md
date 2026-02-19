@@ -1,7 +1,1 @@
-Pedagogické portfolio <br>
-Magisterské studium <br>
-Bc. Petr Jalůvka (D240557) <br>
-Katedra technické a informační výchovy <br>
-Pedagogická fakulta, UPOL
-
-__Zde budou vaše vlastní údaje__
+Do této části portfolia vložte materiály k Vašemu oborovému základu. Např. dokumentaci k technické praxi, realizovaný projekt v Rapsbery Pi, Arduinu, etc., vlastní program včetně kódu, webové stránky s dokumentací atd.
